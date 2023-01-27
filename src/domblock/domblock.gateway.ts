@@ -5,7 +5,7 @@ import {
     OnGatewayConnection,
     OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import { Player } from './player.entity';
+import { Message, Player } from './player.entity';
 @WebSocketGateway({ cors: '*:*' })
 export class DomblockGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @WebSocketServer() server;
@@ -31,7 +31,7 @@ export class DomblockGateway implements OnGatewayConnection, OnGatewayDisconnect
             'player' : player
         }
         // Notify connected clients of current users
-        this.server.emit('userlist', this.playerList);
+        this.server.emit('userlist', JSON.stringify(this.playerList));
     }
 
     async handleDisconnect(client) {
@@ -41,12 +41,12 @@ export class DomblockGateway implements OnGatewayConnection, OnGatewayDisconnect
         // Notify connected clients of current users
         delete this.playerList[client.id];
         // this.socketList.remove(client.id);
-        this.server.emit('userlist', this.playerList);
+        this.server.emit('userlist', JSON.stringify(this.playerList));
     }
     
     @SubscribeMessage('message')
     async onMessage(client, message: string) {
-        let reqClient = JSON.parse(message);
+        let reqClient: Message = JSON.parse(message);
         console.debug('client: ', client.id);
         console.debug('reqClient: ', reqClient);
         console.log("[message] Action: " + reqClient.action + " - from client " + client.id);
@@ -71,14 +71,13 @@ export class DomblockGateway implements OnGatewayConnection, OnGatewayDisconnect
                 console.log("[message][hit] Broadcast these data");
                 console.log(this.playerList[client.id]['player'].data);
 
-                client.broadcast.emit('message', JSON.stringify({
+                let message: Message = {
                     action: 'bchit',
                     param: {
                         'numbloc': reqClient.param.numbloc
                     }
-                }));
-
-                //socket.io.emit('this', reqClient.param);
+                };
+                client.broadcast.emit('message', JSON.stringify(message));
                 reqClient = null;
                 break;
 
